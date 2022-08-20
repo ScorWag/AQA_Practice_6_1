@@ -11,12 +11,34 @@ import static com.codeborne.selenide.Condition.exactText;
 import static com.codeborne.selenide.Condition.visible;
 import static com.codeborne.selenide.Selenide.$x;
 import static com.codeborne.selenide.Selenide.open;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 
 
 public class MoneyTransferTest {
 
     DataHelper.AuthInfo authInfo = DataHelper.getAuthInfo();
     DataHelper.VerificationCode verificationCode = DataHelper.getVerificationCodeFor(authInfo);
+    DataHelper.FirstCardInfo firstCardInfo = DataHelper.getFirstCardInfoFor(authInfo);
+    DataHelper.SecondCardInfo secondCardInfo = DataHelper.getSecondCardInfoFor(authInfo);
+
+    public void equalizeBalance() {
+
+        DashboardPage dashboardPage = new DashboardPage();
+        int firstCardBalance = dashboardPage.getCardBalance(firstCardInfo.getFirstCardId());
+        int secondCardBalance = dashboardPage.getCardBalance(secondCardInfo.getSecondCardId());
+        int equalizeAmount = (firstCardBalance + secondCardBalance) / 2;
+
+
+        if (firstCardBalance > equalizeAmount) {
+            dashboardPage.transfer(secondCardInfo.getSecondCardId())
+                    .moneyTransfer(firstCardBalance - equalizeAmount, firstCardInfo.getFirstCardNumber());
+        }
+        if (secondCardBalance > equalizeAmount) {
+            dashboardPage.transfer(firstCardInfo.getFirstCardId())
+                    .moneyTransfer(secondCardBalance - equalizeAmount, secondCardInfo.getSecondCardNumber());
+        } return;
+    }
 
     @BeforeEach
     void setupTest() {
@@ -24,67 +46,61 @@ public class MoneyTransferTest {
         new LoginPage()
                 .validLogin(authInfo)
                 .validVerify(verificationCode);
+        equalizeBalance();
     }
 
     @Test
     void shouldTransferMoneyBetweenOwnCardsSecondToFirstCard() {
-        var cards = DataHelper.getCardNumbersFor(authInfo);
         int amount = 200;
-        DashboardPage.equalizeBalance(authInfo);
-        var balanceBeforeFirstCard = DashboardPage.getCardBalance(cards.getFirstCardId());
-        var balanceBeforeSecondCard = DashboardPage.getCardBalance(cards.getSecondCardId());
-        int balanceAfterFirstCard = balanceBeforeFirstCard + amount;
-        int balanceAfterSecondCard = balanceBeforeSecondCard - amount;
+        DashboardPage dashboardPage = new DashboardPage();
+        var balanceBeforeFirstCard = dashboardPage.getCardBalance(firstCardInfo.getFirstCardId());
+        var balanceBeforeSecondCard = dashboardPage.getCardBalance(secondCardInfo.getSecondCardId());
 
-        DashboardPage.transfer(cards.getFirstCardId());
-        MoneyTransferPage.moneyTransfer(amount, cards.getSecondCardNumber());
+        dashboardPage.transfer(firstCardInfo.getFirstCardId())
+                .moneyTransfer(amount, secondCardInfo.getSecondCardNumber());
 
-        DashboardPage.cardBalance(cards.getFirstCardId())
-                .shouldHave(exactText("**** **** **** 0001, баланс: " + balanceAfterFirstCard + " р.\nПополнить"));
-        DashboardPage.cardBalance(cards.getSecondCardId())
-                .shouldHave(exactText("**** **** **** 0002, баланс: " + balanceAfterSecondCard + " р.\nПополнить"));
+        int expectedBalanceFirstCard = balanceBeforeFirstCard + amount;
+        int expectedBalanceSecondCard = balanceBeforeSecondCard - amount;
+        int actualBalanceFirstCard = dashboardPage.getCardBalance(firstCardInfo.getFirstCardId());
+        int actualBalanceSecondCard = dashboardPage.getCardBalance(secondCardInfo.getSecondCardId());
+
+        assertEquals(expectedBalanceFirstCard, actualBalanceFirstCard);
+        assertEquals(expectedBalanceSecondCard, actualBalanceSecondCard);
     }
 
     @Test
     void shouldTransferMoneyBetweenOwnCardsFirstToSecondCard() {
-        var cards = DataHelper.getCardNumbersFor(authInfo);
         int amount = 200;
-        DashboardPage.equalizeBalance(authInfo);
-        var balanceBeforeFirstCard = DashboardPage.getCardBalance(cards.getFirstCardId());
-        var balanceBeforeSecondCard = DashboardPage.getCardBalance(cards.getSecondCardId());
-        int balanceAfterFirstCard = balanceBeforeFirstCard - amount;
-        int balanceAfterSecondCard = balanceBeforeSecondCard + amount;
+        DashboardPage dashboardPage = new DashboardPage();
+        var balanceBeforeFirstCard = dashboardPage.getCardBalance(firstCardInfo.getFirstCardId());
+        var balanceBeforeSecondCard = dashboardPage.getCardBalance(secondCardInfo.getSecondCardId());
 
-        DashboardPage.transfer(cards.getSecondCardId());
-        MoneyTransferPage.moneyTransfer(amount, cards.getFirstCardNumber());
+        dashboardPage.transfer(secondCardInfo.getSecondCardId())
+                .moneyTransfer(amount, firstCardInfo.getFirstCardNumber());
 
-        DashboardPage.cardBalance(cards.getFirstCardId())
-                .shouldHave(exactText("**** **** **** 0001, баланс: " + balanceAfterFirstCard + " р.\nПополнить"));
-        DashboardPage.cardBalance(cards.getSecondCardId())
-                .shouldHave(exactText("**** **** **** 0002, баланс: " + balanceAfterSecondCard + " р.\nПополнить"));
+        int expectedBalanceFirstCard = balanceBeforeFirstCard - amount;
+        int expectedBalanceSecondCard = balanceBeforeSecondCard + amount;
+        int actualBalanceFirstCard = dashboardPage.getCardBalance(firstCardInfo.getFirstCardId());
+        int actualBalanceSecondCard = dashboardPage.getCardBalance(secondCardInfo.getSecondCardId());
+
+        assertEquals(expectedBalanceFirstCard, actualBalanceFirstCard);
+        assertEquals(expectedBalanceSecondCard, actualBalanceSecondCard);
     }
-
     @Test
     void shouldErrorNotEnoughMoneyFirstToSecondCard() {
-        var cards = DataHelper.getCardNumbersFor(authInfo);
         int amount = 10200;
-        DashboardPage.equalizeBalance(authInfo);
+        DashboardPage dashboardPage = new DashboardPage();
 
-        DashboardPage.transfer(cards.getSecondCardId());
-        MoneyTransferPage.moneyTransfer(amount, cards.getFirstCardNumber());
-
-        $x("//*[text()='Ошибка! Недостаточно средств!']").shouldBe(visible);
+        dashboardPage.transfer(firstCardInfo.getFirstCardId())
+                .moneyTransferError(amount, secondCardInfo.getSecondCardNumber());
     }
 
     @Test
     void shouldErrorNotEnoughMoneySecondToFirstCard() {
-        var cards = DataHelper.getCardNumbersFor(authInfo);
         int amount = 10200;
-        DashboardPage.equalizeBalance(authInfo);
+        DashboardPage dashboardPage = new DashboardPage();
 
-        DashboardPage.transfer(cards.getFirstCardId());
-        MoneyTransferPage.moneyTransfer(amount, cards.getSecondCardNumber());
-
-        $x("//*[text()='Ошибка! Недостаточно средств!']").shouldBe(visible);
+        dashboardPage.transfer(secondCardInfo.getSecondCardId())
+                .moneyTransferError(amount, firstCardInfo.getFirstCardNumber());
     }
 }

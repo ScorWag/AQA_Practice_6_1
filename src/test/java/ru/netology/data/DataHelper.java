@@ -14,10 +14,14 @@ public class DataHelper {
     }
 
     @Value
-    public static class Cards {
+    public static class FirstCardInfo {
         private String firstCardNumber;
-        private String secondCardNumber;
         private String firstCardId;
+    }
+
+    @Value
+    public static class SecondCardInfo {
+        private String secondCardNumber;
         private String secondCardId;
     }
 
@@ -25,9 +29,12 @@ public class DataHelper {
         return new AuthInfo("vasya", "qwerty123");
     }
 
-    public static Cards getCardNumbersFor(AuthInfo info) {
-        return new Cards("5559 0000 0000 0001", "5559 0000 0000 0002",
-                DashboardPage.extractCardId(1), DashboardPage.extractCardId(2));
+    public static FirstCardInfo getFirstCardInfoFor(AuthInfo info) {
+        return new FirstCardInfo("5559 0000 0000 0001", "92df3f1c-a033-48e6-8390-206f6b1f56c0");
+    }
+
+    public static SecondCardInfo getSecondCardInfoFor(AuthInfo info) {
+        return new SecondCardInfo("5559 0000 0000 0002", "0f3f5c2a-249e-4c3d-8287-09f7a039391d");
     }
 
     public static AuthInfo getUnAuthInfo(AuthInfo original) {
